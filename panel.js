@@ -22,7 +22,8 @@
     selectedWaFrom: '',
     chatSocketOk: false,
     chatStickToBottom: true,
-    flashingWaFrom: ''
+    flashingWaFrom: '',
+    panelPane: 'mcp'
   };
   var chatPollTimer = null;
   var chatFlashTimer = null;
@@ -883,10 +884,9 @@
 
   function companyHeadline(c) {
     var name = (c && c.name) || 'Empresa';
-    var plan = (c && c.planSpec && c.planSpec.name) || (c && c.plan) || '';
+    var plan = (c && c.planSpec && c.planSpec.name) || '';
     var bits = [name, 'Bot WhatsApp IA'];
     if (plan) bits.push('Plan ' + plan);
-    if (c && c.subscriptionStatus) bits.push(String(c.subscriptionStatus));
     return bits.map(function (bit) { return esc(bit); }).join('<span class="tg-co__sep">|</span>');
   }
 
@@ -1480,6 +1480,49 @@
     }
   }
 
+  function wrapPane(id, html) {
+    if (!html) return '';
+    if (!isEnterprise()) return html;
+    var on = (state.panelPane || 'mcp') === id;
+    return '<div class="tg-pane' + (on ? ' is-on' : '') + '" data-pane="' + id + '">' + html + '</div>';
+  }
+
+  function enterpriseMenuHtml(c) {
+    var items = [
+      ['mcp', 'Componentes MCP'],
+      ['brand', 'Marca del bot'],
+      ['ai', 'Consumo de IA']
+    ];
+    if (geoUsageHtml(c)) items.push(['geo', 'Consumo Geoapify']);
+    items.push(['chats', 'Conversaciones'], ['ctx', 'Contexto del bot']);
+    return (
+      '<nav class="tg-co__menu" aria-label="Secciones del panel">' +
+      items.map(function (item) {
+        var on = (state.panelPane || 'mcp') === item[0];
+        return '<button type="button" class="tg-co__tab' + (on ? ' is-on' : '') + '" data-pane="' + item[0] + '">' + item[1] + '</button>';
+      }).join('') +
+      '</nav>'
+    );
+  }
+
+  function bindEnterpriseMenu() {
+    var menu = document.querySelector('.tg-co__menu');
+    if (!menu) return;
+    menu.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('[data-pane]');
+      if (!btn || !menu.contains(btn)) return;
+      var id = btn.getAttribute('data-pane');
+      state.panelPane = id;
+      menu.querySelectorAll('.tg-co__tab').forEach(function (tab) {
+        tab.classList.toggle('is-on', tab.getAttribute('data-pane') === id);
+      });
+      document.querySelectorAll('.tg-pane').forEach(function (pane) {
+        pane.classList.toggle('is-on', pane.getAttribute('data-pane') === id);
+      });
+      if (id === 'mcp') measureEnterpriseThreads();
+    });
+  }
+
   function renderPanel() {
     var c = state.company;
     document.title = (c.name || 'Empresa') + ' · Bot WhatsApp IA';
@@ -1490,13 +1533,14 @@
     root.innerHTML =
       '<header class="tg-co__header">' +
       '<h1 class="tg-co__headline">' + companyHeadline(c) + '</h1>' +
+      (isEnterprise() ? enterpriseMenuHtml(c) : '') +
       '<div class="tg-co__nav"><button type="button" class="tg-btn ghost" id="tg-logout">Salir</button></div>' +
       '</header>' +
       '<p class="tg-err tg-hidden" id="tg-err"></p>' +
       '<p class="tg-note tg-hidden" id="tg-note"></p>' +
       '<div class="tg-board">' +
-      (isEnterprise() ? toolsBoardHtml(c, conn) : '') +
-      '<section class="tg-panel tg-board__brand">' +
+      wrapPane('mcp', isEnterprise() ? toolsBoardHtml(c, conn) : '') +
+      wrapPane('brand', '<section class="tg-panel tg-board__brand">' +
       '<div class="tg-panel__head"><h2>Marca del bot</h2>' +
       '<button type="button" class="tg-btn sm" id="tg-save-brand">Guardar marca</button></div>' +
       '<div class="tg-grid tg-grid--brand">' +
@@ -1505,11 +1549,11 @@
       '<label class="tg-field"><span>Idioma</span><input id="tg-b-lang" value="' + esc(b.language) + '" placeholder="es" /></label>' +
       '<label class="tg-field"><span>Horario</span><input id="tg-b-hours" value="' + esc(b.hours) + '" placeholder="Lun-Vie…" /></label>' +
       '<label class="tg-field tg-field--wide"><span>Disclaimer</span><input id="tg-b-disc" value="' + esc(b.disclaimer) + '" placeholder="Disclaimer" /></label>' +
-      '</div></section>' +
-      aiUsageHtml(c.aiUsage) +
-      geoUsageHtml(c) +
-      chatsSectionHtml() +
-      '<section class="tg-panel tg-board__ctx">' +
+      '</div></section>') +
+      wrapPane('ai', aiUsageHtml(c.aiUsage)) +
+      wrapPane('geo', geoUsageHtml(c)) +
+      wrapPane('chats', chatsSectionHtml()) +
+      wrapPane('ctx', '<section class="tg-panel tg-board__ctx">' +
       '<div class="tg-panel__head"><div><h2>Contexto del bot</h2>' +
       '<p class="tg-ctx__lead">Skill, capacidades y enlaces que usa el agente para responder.</p></div>' +
       '<button type="button" class="tg-btn sm" id="tg-save-ctx">Guardar contexto</button></div>' +
@@ -1533,7 +1577,7 @@
       '<div class="tg-grid tg-grid--links">' +
       '<label class="tg-field"><span>MCP URL (opcional)</span><input id="tg-mcp" placeholder="https://…/mcp" /></label>' +
       '<label class="tg-field"><span>Link de pago</span><input id="tg-pay" placeholder="https://checkout…" /></label>' +
-      '</div></div></section>' +
+      '</div></div></section>') +
       (isEnterprise() ? '' : '<section class="tg-panel tg-board__tutorial tg-tutorial">' +
       '<h2>Tutorial Meta Cloud API</h2>' +
       '<p class="tg-muted tg-tutorial__lead">Tu empresa configura Meta; el cluster es el <strong>webhook</strong> que recibe y responde.</p>' +
@@ -1595,7 +1639,10 @@
     startChatLive();
     applyPlanLocks();
     mountP2lSupportChat();
-    if (isEnterprise()) bindEnterpriseBoard();
+    if (isEnterprise()) {
+      bindEnterpriseBoard();
+      bindEnterpriseMenu();
+    }
   }
 
   function bindCopy(btnSel, inputSel, msg) {
