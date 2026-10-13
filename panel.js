@@ -1538,7 +1538,7 @@
       '</header>' +
       '<p class="tg-err tg-hidden" id="tg-err"></p>' +
       '<p class="tg-note tg-hidden" id="tg-note"></p>' +
-      '<div class="tg-board">' +
+      '<div class="tg-board' + (isEnterprise() ? ' tg-board--panes' : '') + '">' +
       wrapPane('mcp', isEnterprise() ? toolsBoardHtml(c, conn) : '') +
       wrapPane('brand', '<section class="tg-panel tg-board__brand">' +
       '<div class="tg-panel__head"><h2>Marca del bot</h2>' +
