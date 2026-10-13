@@ -68,7 +68,7 @@ html, body {
   border-color: var(--leaf);
 }
 .tg-pane { display: none; }
-.tg-pane.is-on { display: block; }
+.tg-pane.is-on { display: block; width: 100%; min-width: 0; }
 .tg-co__headline {
   flex: 0 1 auto;
   min-width: 0;
@@ -148,6 +148,14 @@ html, body {
   width: 100%;
   min-height: calc(100vh - 110px);
   align-items: stretch;
+}
+.tg-board--panes {
+  display: block;
+  width: 100%;
+  min-height: 0;
+}
+.tg-board--panes > .tg-pane.is-on > .tg-panel {
+  width: 100%;
 }
 .tg-board__brand { grid-area: brand; }
 .tg-board__chats { grid-area: chats; min-height: 0; }
